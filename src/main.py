@@ -8,6 +8,11 @@ from src.collector import (
     load_test_repo,
 )
 from src.graph import build_dependency_graph, find_reverse_dependencies
+from src.visualizer import (
+    build_mermaid_image_url,
+    display_graph_image,
+    generate_mermaid,
+)
 
 STAGE_ONE = 1
 STAGE_TWO = 2
@@ -57,6 +62,23 @@ def run_stage_four(config: AppConfig) -> None:
     print("  " + (", ".join(rev_deps) if rev_deps else "(не найдены)"))
 
 
+def run_stage_five(config: AppConfig) -> None:
+    """Выполняет этап 5: генерация Mermaid и показ изображения."""
+    graph = build_dependency_graph(
+        config.package,
+        config.version,
+        config.repo,
+        config.test_mode,
+        config.filter_substr,
+    )
+    mermaid_text = generate_mermaid(graph)
+    print(mermaid_text)
+    img_url = build_mermaid_image_url(mermaid_text)
+    print(f"\nURL изображения графа: {img_url}")
+    if config.show_image:
+        display_graph_image(mermaid_text)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Основная функция диспетчеризации этапов."""
     try:
@@ -67,8 +89,10 @@ def main(argv: list[str] | None = None) -> int:
             run_stage_two(config)
         elif config.stage == STAGE_THREE:
             run_stage_three(config)
-        else:
+        elif config.stage == STAGE_FOUR:
             run_stage_four(config)
+        else:
+            run_stage_five(config)
     except (ConfigError, CollectorError) as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return EXIT_FAILURE
