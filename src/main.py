@@ -7,8 +7,10 @@ from src.collector import (
     fetch_npm_dependencies,
     load_test_repo,
 )
+from src.graph import build_dependency_graph
 
 STAGE_ONE = 1
+STAGE_TWO = 2
 EXIT_FAILURE = 1
 
 
@@ -26,14 +28,31 @@ def run_stage_two(config: AppConfig) -> None:
         print(f"  {name}: {ver}")
 
 
+def run_stage_three(config: AppConfig) -> None:
+    """Выполняет этап 3: построение транзитивного графа DFS."""
+    graph = build_dependency_graph(
+        config.package,
+        config.version,
+        config.repo,
+        config.test_mode,
+        config.filter_substr,
+    )
+    print("Транзитивный граф зависимостей (DFS):")
+    for pkg, deps in graph.items():
+        joined = ", ".join(deps) if deps else "(нет зависимостей)"
+        print(f"  {pkg} -> {joined}")
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Основная функция диспетчеризации этапов 1 и 2."""
+    """Основная функция диспетчеризации этапов."""
     try:
         config = parse_and_validate(argv)
         if config.stage == STAGE_ONE:
             print(format_config_kv(config))
-        else:
+        elif config.stage == STAGE_TWO:
             run_stage_two(config)
+        else:
+            run_stage_three(config)
     except (ConfigError, CollectorError) as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return EXIT_FAILURE
