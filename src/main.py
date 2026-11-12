@@ -7,10 +7,12 @@ from src.collector import (
     fetch_npm_dependencies,
     load_test_repo,
 )
-from src.graph import build_dependency_graph
+from src.graph import build_dependency_graph, find_reverse_dependencies
 
 STAGE_ONE = 1
 STAGE_TWO = 2
+STAGE_THREE = 3
+STAGE_FOUR = 4
 EXIT_FAILURE = 1
 
 
@@ -43,6 +45,18 @@ def run_stage_three(config: AppConfig) -> None:
         print(f"  {pkg} -> {joined}")
 
 
+def run_stage_four(config: AppConfig) -> None:
+    """Выполняет этап 4: поиск обратных зависимостей пакета."""
+    if not config.test_mode:
+        raise CollectorError("Этап 4 требует --test-mode с полным графом.")
+    full_repo = load_test_repo(config.repo)
+    rev_deps = find_reverse_dependencies(
+        config.package, full_repo, config.filter_substr
+    )
+    print(f"Обратные зависимости для {config.package}:")
+    print("  " + (", ".join(rev_deps) if rev_deps else "(не найдены)"))
+
+
 def main(argv: list[str] | None = None) -> int:
     """Основная функция диспетчеризации этапов."""
     try:
@@ -51,8 +65,10 @@ def main(argv: list[str] | None = None) -> int:
             print(format_config_kv(config))
         elif config.stage == STAGE_TWO:
             run_stage_two(config)
-        else:
+        elif config.stage == STAGE_THREE:
             run_stage_three(config)
+        else:
+            run_stage_four(config)
     except (ConfigError, CollectorError) as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return EXIT_FAILURE

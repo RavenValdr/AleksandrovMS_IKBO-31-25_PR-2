@@ -68,3 +68,45 @@ def build_dependency_graph(
         root_pkg, root_ver, provider, filter_substr, graph, set(), set()
     )
     return graph
+
+
+def invert_graph(graph: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Инвертирует направления ребер графа зависимостей."""
+    inverted: dict[str, list[str]] = {node: [] for node in graph}
+    for src, targets in graph.items():
+        for dst in targets:
+            if dst not in inverted:
+                inverted[dst] = []
+            if src not in inverted[dst]:
+                inverted[dst].append(src)
+    return inverted
+
+
+def find_reverse_dependencies(
+    target_pkg: str,
+    full_repo: dict[str, list[str]],
+    filter_substr: str,
+) -> list[str]:
+    """Находит обратные зависимости пакета тем же алгоритмом DFS."""
+    filtered_repo: dict[str, list[str]] = {}
+    for pkg, deps in full_repo.items():
+        if should_skip(pkg, filter_substr):
+            continue
+        filtered_repo[pkg] = [
+            d for d in deps if not should_skip(d, filter_substr)
+        ]
+    rev_map = invert_graph(filtered_repo)
+    provider: DepProvider = lambda pkg, _: {
+        d: "latest" for d in rev_map.get(pkg, [])
+    }
+    visited_graph: dict[str, list[str]] = {}
+    dfs_collect(
+        target_pkg,
+        "latest",
+        provider,
+        filter_substr,
+        visited_graph,
+        set(),
+        set(),
+    )
+    return sorted(k for k in visited_graph if k != target_pkg)
